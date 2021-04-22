@@ -23,7 +23,7 @@ urlpatterns = [
     path('', home_view, name='home'),
     path('upload', upload_view, name='upload_view'),
     path('admin/', admin.site.urls),
-    path('', include('streamapp.urls'))
+    # path('', include('streamapp.urls'))
 ]
 
 urlpatterns += static(
