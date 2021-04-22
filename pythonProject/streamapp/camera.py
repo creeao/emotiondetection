@@ -1,146 +1,111 @@
-# from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
-# from tensorflow.keras.preprocessing.image import img_to_array
-# from tensorflow.keras.models import load_model
-# from imutils.video import VideoStream
-# import imutils
-# import cv2
-# import os
-# import urllib.request
-# import numpy as np
-# from django.conf import settings
-# face_detection_videocam = cv2.CascadeClassifier(os.path.join(
-#     settings.BASE_DIR, 'opencv_haarcascade_data/haarcascade_frontalface_default.xml'))
-# face_detection_webcam = cv2.CascadeClassifier(os.path.join(
-#     settings.BASE_DIR, 'opencv_haarcascade_data/haarcascade_frontalface_default.xml'))
-# # load our serialized face detector model from disk
-# prototxtPath = os.path.sep.join(
-#     [settings.BASE_DIR, "face_detector/deploy.prototxt"])
-# weightsPath = os.path.sep.join(
-#     [settings.BASE_DIR, "face_detector/res10_300x300_ssd_iter_140000.caffemodel"])
-# faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
-# maskNet = load_model(os.path.join(
-#     settings.BASE_DIR, 'face_detector/mask_detector.model'))
+
+from imutils.video import VideoStream
+from imutils.video import FPS
+import imutils
+import cv2
+import os
+import urllib.request
+import pickle
+import numpy as np
+from django.conf import settings
+from streamapp import extract_embeddings
+from streamapp import train_model
+# load our serialized face detector model from disk
+protoPath = os.path.sep.join(
+    [settings.BASE_DIR, "face_detection_model/deploy.prototxt"])
+modelPath = os.path.sep.join(
+    [settings.BASE_DIR, "face_detection_model/res10_300x300_ssd_iter_140000.caffemodel"])
+detector = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
+# load our serialized face embedding model from disk
+embedder = cv2.dnn.readNetFromTorch(os.path.join(
+    settings.BASE_DIR, 'face_detection_model/openface_nn4.small2.v1.t7'))
+# load the actual face recognition model along with the label encoder
+recognizer = os.path.sep.join([settings.BASE_DIR, "output/recognizer.pickle"])
+recognizer = pickle.loads(open(recognizer, "rb").read())
+le = os.path.sep.join([settings.BASE_DIR, "output/le.pickle"])
+le = pickle.loads(open(le, "rb").read())
+dataset = os.path.sep.join([settings.BASE_DIR, "dataset"])
+user_list = [f.name for f in os.scandir(dataset) if f.is_dir()]
 
 
-# class VideoCamera(object):
-#     def __init__(self):
-#         self.video = cv2.VideoCapture(0)
+class FaceDetect(object):
+    def __init__(self):
+        extract_embeddings.embeddings()
+        train_model.model_train()
+        # initialize the video stream, then allow the camera sensor to warm up
+        self.vs = VideoStream(src=0).start()
+        # start the FPS throughput estimator
+        self.fps = FPS().start()
 
-#     def __del__(self):
-#         self.video.release()
+    def __del__(self):
+        cv2.destroyAllWindows()
 
-#     def get_frame(self):
-#         success, image = self.video.read()
-#         # We are using Motion JPEG, but OpenCV defaults to capture raw images,
-#         # so we must encode it into JPEG in order to correctly display the
-#         # video stream.
+    def get_frame(self):
+        # grab the frame from the threaded video stream
+        frame = self.vs.read()
+        frame = cv2.flip(frame, 1)
 
-#         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-#         faces_detected = face_detection_videocam.detectMultiScale(
-#             gray, scaleFactor=1.3, minNeighbors=5)
-#         for (x, y, w, h) in faces_detected:
-#             cv2.rectangle(image, pt1=(x, y), pt2=(x + w, y + h),
-#                           color=(255, 0, 0), thickness=2)
-#         frame_flip = cv2.flip(image, 1)
-#         ret, jpeg = cv2.imencode('.jpg', frame_flip)
-#         return jpeg.tobytes()
+        # resize the frame to have a width of 600 pixels (while
+        # maintaining the aspect ratio), and then grab the image
+        # dimensions
+        frame = imutils.resize(frame, width=600)
+        (h, w) = frame.shape[:2]
 
+        # construct a blob from the image
+        imageBlob = cv2.dnn.blobFromImage(
+            cv2.resize(frame, (300, 300)), 1.0, (300, 300),
+            (104.0, 177.0, 123.0), swapRB=False, crop=False)
 
-# class MaskDetect(object):
-#     def __init__(self):
-#         self.vs = VideoStream(src=0).start()
+        # apply OpenCV's deep learning-based face detector to localize
+        # faces in the input image
+        detector.setInput(imageBlob)
+        detections = detector.forward()
 
-#     def __del__(self):
-#         cv2.destroyAllWindows()
+        # loop over the detections
+        for i in range(0, detections.shape[2]):
+            # extract the confidence (i.e., probability) associated with
+            # the prediction
+            confidence = detections[0, 0, i, 2]
 
-#     def detect_and_predict_mask(self, frame, faceNet, maskNet):
-#         # grab the dimensions of the frame and then construct a blob
-#         # from it
-#         (h, w) = frame.shape[:2]
-#         blob = cv2.dnn.blobFromImage(frame, 1.0, (300, 300),
-#                                      (104.0, 177.0, 123.0))
+            # filter out weak detections
+            if confidence > 0.5:
+                # compute the (x, y)-coordinates of the bounding box for
+                # the face
+                box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
+                (startX, startY, endX, endY) = box.astype("int")
 
-#         # pass the blob through the network and obtain the face detections
-#         faceNet.setInput(blob)
-#         detections = faceNet.forward()
+                # extract the face ROI
+                face = frame[startY:endY, startX:endX]
+                (fH, fW) = face.shape[:2]
 
-#         # initialize our list of faces, their corresponding locations,
-#         # and the list of predictions from our face mask network
-#         faces = []
-#         locs = []
-#         preds = []
+                # ensure the face width and height are sufficiently large
+                if fW < 20 or fH < 20:
+                    continue
 
-#         # loop over the detections
-#         for i in range(0, detections.shape[2]):
-#             # extract the confidence (i.e., probability) associated with
-#             # the detection
-#             confidence = detections[0, 0, i, 2]
+                # construct a blob for the face ROI, then pass the blob
+                # through our face embedding model to obtain the 128-d
+                # quantification of the face
+                faceBlob = cv2.dnn.blobFromImage(face, 1.0 / 255,
+                                                 (96, 96), (0, 0, 0), swapRB=True, crop=False)
+                embedder.setInput(faceBlob)
+                vec = embedder.forward()
 
-#             # filter out weak detections by ensuring the confidence is
-#             # greater than the minimum confidence
-#             if confidence > 0.5:
-#                 # compute the (x, y)-coordinates of the bounding box for
-#                 # the object
-#                 box = detections[0, 0, i, 3:7] * np.array([w, h, w, h])
-#                 (startX, startY, endX, endY) = box.astype("int")
+                # perform classification to recognize the face
+                preds = recognizer.predict_proba(vec)[0]
+                j = np.argmax(preds)
+                proba = preds[j]
+                name = le.classes_[j]
 
-#                 # ensure the bounding boxes fall within the dimensions of
-#                 # the frame
-#                 (startX, startY) = (max(0, startX), max(0, startY))
-#                 (endX, endY) = (min(w - 1, endX), min(h - 1, endY))
+                # draw the bounding box of the face along with the
+                # associated probability
+                text = "{}: {:.2f}%".format(name, proba * 100)
+                y = startY - 10 if startY - 10 > 10 else startY + 10
+                cv2.rectangle(frame, (startX, startY), (endX, endY),
+                              (0, 0, 255), 2)
+                cv2.putText(frame, text, (startX, y),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.45, (0, 0, 255), 2)
 
-#                 # extract the face ROI, convert it from BGR to RGB channel
-#                 # ordering, resize it to 224x224, and preprocess it
-#                 face = frame[startY:endY, startX:endX]
-#                 face = cv2.cvtColor(face, cv2.COLOR_BGR2RGB)
-#                 face = cv2.resize(face, (224, 224))
-#                 face = img_to_array(face)
-#                 face = preprocess_input(face)
-
-#                 # add the face and bounding boxes to their respective
-#                 # lists
-#                 faces.append(face)
-#                 locs.append((startX, startY, endX, endY))
-
-#         # only make a predictions if at least one face was detected
-#         if len(faces) > 0:
-#             # for faster inference we'll make batch predictions on *all*
-#             # faces at the same time rather than one-by-one predictions
-#             # in the above `for` loop
-#             faces = np.array(faces, dtype="float32")
-#             preds = maskNet.predict(faces, batch_size=32)
-
-#         # return a 2-tuple of the face locations and their corresponding
-#         # locations
-#         return (locs, preds)
-
-#     def get_frame(self):
-#         frame = self.vs.read()
-#         frame = imutils.resize(frame, width=650)
-#         frame = cv2.flip(frame, 1)
-#         # detect faces in the frame and determine if they are wearing a
-#         # face mask or not
-#         (locs, preds) = self.detect_and_predict_mask(frame, faceNet, maskNet)
-
-#         # loop over the detected face locations and their corresponding
-#         # locations
-#         for (box, pred) in zip(locs, preds):
-#             # unpack the bounding box and predictions
-#             (startX, startY, endX, endY) = box
-#             (mask, withoutMask) = pred
-
-#             # determine the class label and color we'll use to draw
-#             # the bounding box and text
-#             label = "Mask" if mask > withoutMask else "No Mask"
-#             color = (0, 255, 0) if label == "Mask" else (0, 0, 255)
-
-#             # include the probability in the label
-#             label = "{}: {:.2f}%".format(label, max(mask, withoutMask) * 100)
-
-#             # display the label and bounding box rectangle on the output
-#             # frame
-#             cv2.putText(frame, label, (startX, startY - 10),
-#                         cv2.FONT_HERSHEY_SIMPLEX, 0.45, color, 2)
-#             cv2.rectangle(frame, (startX, startY), (endX, endY), color, 2)
-#         ret, jpeg = cv2.imencode('.jpg', frame)
-#         return jpeg.tobytes()
+        # update the FPS counter
+        self.fps.update()
+        ret, jpeg = cv2.imencode('.jpg', frame)
+        return jpeg.tobytes()
