@@ -14,7 +14,7 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path
+from django.urls import path, include
 from views.views import home_view, upload_view
 from django.conf import settings
 from django.conf.urls.static import static
@@ -23,6 +23,7 @@ urlpatterns = [
     path('', home_view, name='home'),
     path('upload', upload_view, name='upload_view'),
     path('admin/', admin.site.urls),
+    path('', include('streamapp.urls'))
 ]
 
 urlpatterns += static(

@@ -40,7 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
 
     # put apps in here
-    'views'
+    'views',
+    'streamapp'
 ]
 
 MIDDLEWARE = [
