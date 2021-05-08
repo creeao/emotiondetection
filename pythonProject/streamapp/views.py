@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http.response import StreamingHttpResponse
-from streamapp.camera import VideoCamera, IPWebCam, MaskDetect, LiveWebCam
-# Create your views here.
+from streamapp.camera import VideoCamera, MaskDetect
+# Create your views here
 
 
 def index(request):
