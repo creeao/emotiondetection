@@ -162,3 +162,19 @@ class MaskDetect(object):
 		ret, jpeg = cv2.imencode('.jpg', frame)
 		return jpeg.tobytes()
 		
+class FaceOnJpg(object):
+	# wczytanie obrazu
+	image = face_recognition.load_image_file("people.jpg")
+	# znalezienie wszystkich lokalizacji twarzy na zdjęciu i zapisanie do listy
+	face_locations = face_recognition.face_locations(image)
+	# załaduj do zmiennej zdjęcie na którym będziemy rysować
+	pil_image = PIL.Image.fromarray(image)
+	for face_location in face_locations:
+	# Wypisz lokalizacje twarzy na obrazie, każda zmienna przechowuje wartości (top, right, bottom, left).
+	top, right, bottom, left = face_location
+	print("Twarz znajduję się w lokalizacji pikseli Top: {}, Left: {}, Bottom: {}, Right: {}".format(top, left, bottom, right))
+	# rysowanie kwadratu dookoła twarzy
+	draw = PIL.ImageDraw.Draw(pil_image)
+	draw.rectangle([left, top, right, bottom], outline="red")
+	# Pokazanie efektu końcowego
+	pil_image.show()
