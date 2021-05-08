@@ -20,15 +20,7 @@ def video_feed(request):
 					content_type='multipart/x-mixed-replace; boundary=frame')
 
 
-def webcam_feed(request):
-	return StreamingHttpResponse(gen(IPWebCam()),
-					content_type='multipart/x-mixed-replace; boundary=frame')
-
-
 def mask_feed(request):
 	return StreamingHttpResponse(gen(MaskDetect()),
 					content_type='multipart/x-mixed-replace; boundary=frame')
 					
-def livecam_feed(request):
-	return StreamingHttpResponse(gen(LiveWebCam()),
-					content_type='multipart/x-mixed-replace; boundary=frame')
