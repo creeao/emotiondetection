@@ -1,6 +1,7 @@
 from django.shortcuts import render
 from django.conf import settings
 from django.core.files.storage import FileSystemStorage
+import matplotlib.pyplot as plt
 import cv2,os,urllib.request
 import sys
 face_detection_videocam = cv2.CascadeClassifier(os.path.join(
@@ -37,7 +38,12 @@ def index(request, *args, **kwargs):
 				cv2.rectangle(image, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
 			#cv2.imshow("Faces found", image)
-			
+			im = cv2.imread(image)
+			im_resized = cv2.resize(im, (224, 224), interpolation=cv2.INTER_LINEAR)
+
+			plt.imshow(cv2.cvtColor(im_resized, cv2.COLOR_BGR2RGB))
+			plt.show()
+
 			return render(request, "upload/home.html", {'uploaded_file_url': "Found {0} faces!".format(len(faces))})
 		else:
 			return render(request, "upload/home.html", {'uploaded_file_url': 'It has to be an image'})
