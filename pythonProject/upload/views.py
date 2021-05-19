@@ -8,6 +8,8 @@ face_detection_videocam = cv2.CascadeClassifier(os.path.join(
 			settings.BASE_DIR,'opencv_haarcascade_data/haarcascade_frontalface_default.xml'))
 # Create your views here.
 
+media_root = settings.MEDIA_ROOT
+
 
 def index(request, *args, **kwargs):
 	if request.method == 'POST' and request.FILES['myfile']:
@@ -15,11 +17,12 @@ def index(request, *args, **kwargs):
 			myfile = request.FILES['myfile']
 			fs = FileSystemStorage()
 			filename = fs.save(myfile.name, myfile)
+			uploaded_file_url = fs.url(filename)
 			# Create the haar cascade
 			faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-
+			print(media_root+uploaded_file_url)
 			# Read the image
-			image = cv2.imread('C:/Users/G/Desktop/Test.jpg')
+			image = cv2.imread(media_root+uploaded_file_url)
 			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
 			# Detect faces in the image
