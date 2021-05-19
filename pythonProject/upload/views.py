@@ -20,7 +20,7 @@ def index(request, *args, **kwargs):
 			uploaded_file_url = fs.url(filename)
 			# Create the haar cascade
 			faceCascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
-			print(media_root+uploaded_file_url)
+			print(media_root+"\\"+filename)
 			# Read the image
 			image = cv2.imread(media_root+uploaded_file_url)
 			gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
