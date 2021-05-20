@@ -4,7 +4,7 @@ __pycache__/
 *$py.class
 media/
 .idea/
-
+.vscode
 # C extensions
 *.so
 
