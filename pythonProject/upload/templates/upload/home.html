@@ -1,20 +1,19 @@
 {% extends "base.html" %} {% block content %}
 
 <div>
-  <h1>Upload a picture</h1>
   <form enctype="multipart/form-data" method="post">
     {% csrf_token %}
-    <input type="file" name="myfile" />
-    <input type="submit" />
+    <input class="inputLeft" type="file" name="myfile" />
+    <input class="inputRight" type="submit" />
+    <p>
+      <div class="photoContainerBackground">
+        {% if uploaded_file_url %}
+        <img class="photoContainer" src="{{ uploaded_file_url }}" alt="Upload" />
+        {% endif %}
+      </div>
+    </p>
+    
   </form>
-
-  {% if uploaded_file_url %}
-  <p>
-    File uploaded at:
-    <a href="{{ uploaded_file_url }}">{{ uploaded_file_url }}</a>
-    <img src="{{ uploaded_file_url }}" alt="Upload" />
-  </p>
-  {% endif %}
 </div>
 
 {% endblock content%}
