@@ -9,6 +9,8 @@ import numpy as np
 import cv2
 import os
 
+from .models import EmotionModel
+
 face_detection_videocam = cv2.CascadeClassifier(
     os.path.join(
         settings.BASE_DIR, "opencv_haarcascade_data/haarcascade_frontalface_default.xml"
@@ -33,11 +35,18 @@ model.add(Dense(1024, activation='relu'))
 model.add(Dropout(0.5))
 model.add(Dense(7, activation='softmax'))
 
-def opencv_face(path):
-    model.load_weights(os.path.join(
+pathToModel = os.path.join(
                 settings.BASE_DIR,
                 "opencv_haarcascade_data/model.h5",
-            ))
+            )
+
+pathToHaarscascade = os.path.join(
+                settings.BASE_DIR,
+                "opencv_haarcascade_data/haarcascade_frontalface_default.xml",
+            )
+
+def opencv_face(path):
+    model.load_weights(pathToModel)
     img = cv2.imread(path)
 
     # dictionary which assigns each label an emotion (alphabetical order)
@@ -46,12 +55,7 @@ def opencv_face(path):
     if type(img) is np.ndarray:
         print(img.shape)
 
-        face_cascade = cv2.CascadeClassifier(
-            os.path.join(
-                settings.BASE_DIR,
-                "opencv_haarcascade_data/haarcascade_frontalface_default.xml",
-            )
-        )
+        face_cascade = cv2.CascadeClassifier( pathToHaarscascade )
 
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         faces = face_cascade.detectMultiScale(gray, 1.3, 5)
@@ -63,7 +67,8 @@ def opencv_face(path):
             cropped_img = np.expand_dims(np.expand_dims(cv2.resize(roi_gray, (48, 48)), -1), 0)
             prediction = model.predict(cropped_img)
             maxindex = int(np.argmax(prediction))
-            cv2.putText(img, emotion_dict[maxindex], (x+20, y-60), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
+            # AddEmotionToDB(emotion_dict[maxindex])
+            cv2.putText(img, emotion_dict[maxindex], (x+50, y-20), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 255, 255), 2, cv2.LINE_AA)
             
 
         cv2.imwrite(path, img)
@@ -71,3 +76,8 @@ def opencv_face(path):
     else:
         print("something error")
         print(path)
+
+
+def AddEmotionToDB(EmotionFromPicture):
+    Emotion = EmotionModel(emotion=EmotionFromPicture)
+    Emotion.save()
