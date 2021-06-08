@@ -56,11 +56,11 @@ class VideoCamera(object):
 
 		model.load_weights('model.h5')
 
-   	 	# prevents openCL usage and unnecessary logging messages
+		# prevents openCL usage and unnecessary logging messages
 		cv2.ocl.setUseOpenCL(False)
-        emotion_dict = {0: "Angry", 1: "Disgusted", 2: "Fearful", 3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised"}###
-        cap = cv2.VideoCapture(0)
-        while True:
+		emotion_dict = {0: "Angry", 1: "Disgusted", 2: "Fearful", 3: "Happy", 4: "Neutral", 5: "Sad", 6: "Surprised"}
+		cap = cv2.VideoCapture(0)
+		while True:
 			# Find haar cascade to draw bounding box around face
 			ret, frame = cap.read()
 			if not ret:
@@ -82,7 +82,7 @@ class VideoCamera(object):
 			if cv2.waitKey(1) & 0xFF == ord('q'):
 				break
 
-   			cap.release()
+			cap.release()
 
 
 # class IPWebCam(object):
