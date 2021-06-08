@@ -11,12 +11,6 @@ import os
 
 from .models import EmotionModel
 
-face_detection_videocam = cv2.CascadeClassifier(
-    os.path.join(
-        settings.BASE_DIR, "opencv_haarcascade_data/haarcascade_frontalface_default.xml"
-    )
-)
-
 model = Sequential()
 
 model.add(Conv2D(32, kernel_size=(3, 3), activation='relu', input_shape=(48,48,1)))
