@@ -21,8 +21,14 @@ prototxtPath = os.path.sep.join([settings.BASE_DIR, "face_detector/deploy.protot
 weightsPath = os.path.sep.join([settings.BASE_DIR,"face_detector/res10_300x300_ssd_iter_140000.caffemodel"])
 faceNet = cv2.dnn.readNet(prototxtPath, weightsPath)
 maskNet = load_model(os.path.join(settings.BASE_DIR,'face_detector/mask_detector.model'))
-
-
+pathToModel = os.path.join(
+                settings.BASE_DIR,
+                "opencv_haarcascade_data/model.h5",
+            )
+pathToHaarscascade = os.path.join(
+                settings.BASE_DIR,
+                "opencv_haarcascade_data/haarcascade_frontalface_default.xml",
+            )
 class VideoCamera(object):
 	def __init__(self):
 		self.video = cv2.VideoCapture(0)
@@ -54,7 +60,7 @@ class VideoCamera(object):
 		model.add(Dense(7, activation='softmax'))	
 
 
-		model.load_weights('model.h5')
+		model.load_weights(pathToModel)
 
 		# prevents openCL usage and unnecessary logging messages
 		cv2.ocl.setUseOpenCL(False)
@@ -65,10 +71,9 @@ class VideoCamera(object):
 			ret, frame = cap.read()
 			if not ret:
 				break
-			facecasc = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+			facecasc = cv2.CascadeClassifier( pathToHaarscascade )
 			gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-			faces = facecasc.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
-
+			faces = facecasc.detectMultiScale(gray, 1.3, 5)
 			for (x, y, w, h) in faces:
 				cv2.rectangle(frame, (x, y - 50), (x + w, y + h + 10), (255, 0, 0), 2)
 				roi_gray = gray[y:y + h, x:x + w]
@@ -83,7 +88,8 @@ class VideoCamera(object):
 				break
 
 			cap.release()
-
+			ret, jpeg = cv2.imencode('.jpg', frame)
+			return jpeg.tobytes()
 
 # class IPWebCam(object):
 # 	def __init__(self):
